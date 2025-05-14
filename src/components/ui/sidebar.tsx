@@ -162,6 +162,7 @@ const Sidebar = React.forwardRef<
     side?: "left" | "right"
     variant?: "sidebar" | "floating" | "inset"
     collapsible?: "offcanvas" | "icon" | "none"
+    defaultOpen?: boolean; // Acknowledge defaultOpen to destructure it
   }
 >(
   (
@@ -171,7 +172,8 @@ const Sidebar = React.forwardRef<
       collapsible = "offcanvas",
       className,
       children,
-      ...props
+      defaultOpen, // Destructure defaultOpen: it's handled by SidebarProvider and should not be spread to DOM elements here
+      ...rest // rest will contain other valid div props like id, style, etc.
     },
     ref
   ) => {
@@ -182,10 +184,10 @@ const Sidebar = React.forwardRef<
         <div
           className={cn(
             "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
-            className
+            className // Apply className from props
           )}
           ref={ref}
-          {...props}
+          {...rest} // Spread other valid div props
         >
           {children}
         </div>
@@ -194,17 +196,21 @@ const Sidebar = React.forwardRef<
 
     if (isMobile) {
       return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+        <Sheet open={openMobile} onOpenChange={setOpenMobile} side={side}>
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className={cn(
+              "w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
+              className // Apply className from props to SheetContent
+            )}
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+                ...(rest.style || {}), // Apply style from props
               } as React.CSSProperties
             }
-            side={side}
+            {...rest} // Spread other valid props to SheetContent, but style and className are handled
           >
             <div className="flex h-full w-full flex-col">{children}</div>
           </SheetContent>
@@ -212,14 +218,19 @@ const Sidebar = React.forwardRef<
       )
     }
 
+    // Desktop view (collapsible is "offcanvas" or "icon")
     return (
-      <div
+      <div // This is the main root div for the desktop sidebar
         ref={ref}
-        className="group peer hidden md:block text-sidebar-foreground"
+        className={cn(
+          "group peer hidden md:block text-sidebar-foreground",
+          className // Apply className from props here
+        )}
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}
         data-side={side}
+        {...rest} // Apply other div props like id, style here
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div
@@ -232,6 +243,7 @@ const Sidebar = React.forwardRef<
               : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]"
           )}
         />
+        {/* This is the fixed inner div that was causing the error */}
         <div
           className={cn(
             "duration-200 fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex",
@@ -241,10 +253,11 @@ const Sidebar = React.forwardRef<
             // Adjust the padding for floating and inset variants.
             variant === "floating" || variant === "inset"
               ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
-              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
-            className
+              : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l"
+            // DO NOT pass `className` from props here, it's for the outer div.
+            // DO NOT spread `...rest` here, it's for the outer div.
           )}
-          {...props}
+          // No {...props} or {...rest} here
         >
           <div
             data-sidebar="sidebar"
